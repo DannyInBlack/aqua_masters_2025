@@ -9,7 +9,6 @@ import pickle
 context = zmq.Context()
 pc_ip = "192.168.72.211"
 
-# CAMERA =
 cap = cv2.VideoCapture(0)  # Replace 0 with correct index if needed
 
 print("CAMERA SOCKET")
@@ -19,6 +18,7 @@ server_socket.listen(1)
 print("Waiting for connection...")
 conn, addr = server_socket.accept()
 print("Connected by", addr)
+
 
 print("Control SOCKET")
 control_socket = context.socket(zmq.SUB)
@@ -89,46 +89,47 @@ def map_joystick_to_thrusters(x, y, tilt, power, pov):
 	for i in range(len(motors)):
 		motors[i] = convert_to_int(motors[i])
 
+	motors[5] = min(motors[5], 1800)
+	motors[5] = max(motors[5], 1200)
+
 	return motors
 
 
 def receive_joystick():
-	print("receive joystick fun")
-	try:
-		joystick_data = control_socket.recv_json()
-		print("Received Joystick Data:", joystick_data)
-			# Later: Send these values to ESP32 over Serial
-		if joystick_data:
-			thruster_values = map_joystick_to_thrusters(
-				joystick_data['x'],
-				joystick_data['y'],
-				joystick_data['tilt'],
-				joystick_data['power'],
-				joystick_data['pov'],
-			)
+	# print("receive joystick fun")
+	while True:
+		try:
+			joystick_data = control_socket.recv_json()
+			# print("Received Joystick Data:", joystick_data)
+			if joystick_data:
+				thruster_values = map_joystick_to_thrusters(
+					joystick_data['x'],
+					joystick_data['y'],
+					joystick_data['tilt'],
+					joystick_data['power'],
+					joystick_data['pov'],
+				)
 
-			# Send thruster values to ESP32 over UART
-			thruster_command = " ".join(map(str, thruster_values)) + "\n"
-			ser.write(thruster_command.encode())
-			#
-			print("Sent Thruster Data:", thruster_command)
-	except Exception as e:
-		print("Error receiving joystick data:", e)
+				# Send thruster values to ESP32 over UART
+				thruster_command = " ".join(map(str, thruster_values)) + "\n"
+				ser.write(thruster_command.encode())
+				print("Sent Thruster Data:", thruster_command)
+		except Exception as e:
+			print("Error receiving joystick data:", e)
 
 threading.Thread(target=receive_joystick, daemon=True).start()
 
 while True:
-	print("LOOP\nreceive joystick")
-	receive_joystick()
-	print("camera read")
+	# receive_joystick()
+
 	ret, frame = cap.read()
 	if not ret:
 		continue
-    
-	_, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+
+	_, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEGXL_QUALITY), 80])
 	data = pickle.dumps(buffer)
 	size = len(data)
-    
+
 	try:
 		conn.sendall(struct.pack(">L", size) + data)
 	except BrokenPipeError:

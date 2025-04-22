@@ -15,11 +15,12 @@ import pickle
 
 # Raspberry Pi IP
 RASPBERRY_PI_IP = "192.168.72.250"
+#4568
 
 # Define window size
 WINDOW_WIDTH = 1920
 WINDOW_HEIGHT = 1080
-VIDEO_WIDTH, VIDEO_HEIGHT = 1400, 400  # Camera feed size
+VIDEO_WIDTH, VIDEO_HEIGHT = 720, 480  # Camera feed size
 NO_CONN = True
 # CONTROLS = True
 BAR_HEIGHT = 165
@@ -92,7 +93,8 @@ thruster_bar.grid(row=1, column=0, pady=(10, 0), padx=10)
 # Updates thruster GUI
 def update_thruster(power):
     thruster_bar.delete("all")
-    thruster_bar.create_rectangle(0, BAR_HEIGHT - power * BAR_HEIGHT, 20, BAR_HEIGHT, fill="green")
+    # print(power)
+    thruster_bar.create_rectangle(0, BAR_HEIGHT / 2 - power * BAR_HEIGHT / 2, 20,  BAR_HEIGHT / 2, fill="green")
 
 
 # Battery Monitoring
@@ -102,10 +104,22 @@ battery_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
 battery_bar.grid(row=1, column=1, pady=(10, 0), padx=10)
 
 
+
+
 # Updates battery GUI
 def update_battery(level):
     battery_bar.delete("all")
     battery_bar.create_rectangle(0, 0, 20, level, fill="blue")
+
+# Thruster Power Bar Indicator
+float_label = tk.Label(right_frame, text="Float", bg="lightgray")
+float_label.grid(row=0, column=2, padx=10)
+float_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
+float_bar.grid(row=1, column=2, pady=(10, 0), padx=10)
+
+def update_float(level):
+    float_bar.delete("all")
+    float_bar.create_rectangle(0, BAR_HEIGHT / 2 - level * BAR_HEIGHT / 2, 20, BAR_HEIGHT / 2, fill="blue")
 
 
 # Joystick Movement Graph Setup
@@ -114,7 +128,7 @@ ax_joystick.set_xlim(-100, 100)
 ax_joystick.set_ylim(-100, 100)
 ax_joystick.set_title("Joystick Movement")
 joystick_canvas = FigureCanvasTkAgg(fig_joystick, master=right_frame)
-joystick_canvas.get_tk_widget().grid(row=0, column=2, rowspan=2, padx=10)
+joystick_canvas.get_tk_widget().grid(row=0, column=3, rowspan=2, padx=10)
 joystick_point, = ax_joystick.plot([0], [0], "ro", markersize=8)
 
 
@@ -126,7 +140,7 @@ def update_joystick_graph(x, y):
     joystick_canvas.draw()
 
 tilt_and_gripper = tk.Frame(right_frame)
-tilt_and_gripper.grid(row=0, column=3, padx=10, rowspan=2)
+tilt_and_gripper.grid(row=0, column=4, padx=10, rowspan=2)
 
 # Tilting Controller (X-axis rotation)
 tilt_label = tk.Label(tilt_and_gripper, text="Tilt Angle", bg="lightgray")
@@ -207,7 +221,7 @@ def update_data():
     sensor1 = round(random.uniform(20, 30), 1)
     # print(joystick.get_axis(3))
     x, y = round(joystick.get_axis(0), 2) * 100, round(joystick.get_axis(1) * -1, 2) * 100
-    thruster_power = round(1 - (joystick.get_axis(3) + 1) / 2, 2)
+    thruster_power = round(joystick.get_axis(3) * -1, 2)
     # battery_level = random.randint(0, 100)
     battery_level = 0
     # gripper_status = random.choice(["open", "closed", "opening", "closing"])
@@ -219,10 +233,9 @@ def update_data():
     joystick_data = {
         "x": round(joystick.get_axis(0), 2),  # Left/Right
         "y": round(joystick.get_axis(1), 2),  # Forward/Backward
-        "tilt": round(joystick.get_axis(2), 2),  # Speed Control
+        "tilt": round(joystick.get_axis(0), 2),  # Speed Control
         "power": round(joystick.get_axis(3) * -1, 2),  # Rotation
         "pov": joystick.get_hat(0)[1], # Float up or down
-        "gripper": joystick.get_button(0) # Gripper open or closed
     }
 
     # if not NO_CONN:
@@ -236,6 +249,7 @@ def update_data():
     update_battery(battery_level)
     update_gripper(gripper_status)
     update_tilt(tilt_angle)
+    update_float(joystick.get_hat(0)[1])
 
     # with open(log_file, "a", newline="") as file:
     #     writer = csv.writer(file)
