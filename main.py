@@ -1,5 +1,5 @@
 # Code used to send and receive data from the Pi - currently up to date
-
+import time
 import tkinter as tk
 import random
 import matplotlib.pyplot as plt
@@ -48,13 +48,13 @@ control_socket = context.socket(zmq.PUB)
 control_socket.bind("tcp://*:5556")  # Send joystick data from this port
 
 # Detect joystick
-if pygame.joystick.get_count() > 0:
-    joystick = pygame.joystick.Joystick(0)
-    joystick.init()
-    print(f"Joystick Connected: {joystick.get_name()}")
-else:
-    joystick = None
-    print("No Joystick Detected!")
+joystick = None
+while pygame.joystick.get_count() == 0:
+    print("Please connect the joystick!")
+    time.sleep(5)
+joystick = pygame.joystick.Joystick(0)
+joystick.init()
+print(f"Joystick Connected: {joystick.get_name()}")
 
 # Create Frames
 left_frame = tk.Frame(root, padx=20, pady=20, bg="lightblue")
@@ -83,33 +83,31 @@ def update_graph():
     temp_canvas.draw()
 
 
-# Thruster Power Bar Indicator
-thruster_label = tk.Label(right_frame, text="Thruster Power", bg="lightgray")
-thruster_label.grid(row=0, column=0, padx=10)
-thruster_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
-thruster_bar.grid(row=1, column=0, pady=(10, 0), padx=10)
-
-
-# Updates thruster GUI
-def update_thruster(power):
-    thruster_bar.delete("all")
-    # print(power)
-    thruster_bar.create_rectangle(0, BAR_HEIGHT / 2 - power * BAR_HEIGHT / 2, 20,  BAR_HEIGHT / 2, fill="green")
-
-
-# Battery Monitoring
-battery_label = tk.Label(right_frame, text="Battery Level", bg="lightgray")
-battery_label.grid(row=0, column=1, padx=10)
-battery_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
-battery_bar.grid(row=1, column=1, pady=(10, 0), padx=10)
-
-
-
-
-# Updates battery GUI
-def update_battery(level):
-    battery_bar.delete("all")
-    battery_bar.create_rectangle(0, 0, 20, level, fill="blue")
+# # Thruster Power Bar Indicator
+# thruster_label = tk.Label(right_frame, text="Thruster Power", bg="lightgray")
+# thruster_label.grid(row=0, column=0, padx=10)
+# thruster_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
+# thruster_bar.grid(row=1, column=0, pady=(10, 0), padx=10)
+#
+#
+# # Updates thruster GUI
+# def update_thruster(power):
+#     thruster_bar.delete("all")
+#     # print(power)
+#     thruster_bar.create_rectangle(0, BAR_HEIGHT / 2 - power * BAR_HEIGHT / 2, 20,  BAR_HEIGHT / 2, fill="green")
+#
+#
+# # Battery Monitoring
+# battery_label = tk.Label(right_frame, text="Battery Level", bg="lightgray")
+# battery_label.grid(row=0, column=1, padx=10)
+# battery_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
+# battery_bar.grid(row=1, column=1, pady=(10, 0), padx=10)
+#
+#
+# # Updates battery GUI
+# def update_battery(level):
+#     battery_bar.delete("all")
+#     battery_bar.create_rectangle(0, 0, 20, level, fill="blue")
 
 # Thruster Power Bar Indicator
 float_label = tk.Label(right_frame, text="Float", bg="lightgray")
@@ -233,7 +231,7 @@ def update_data():
     joystick_data = {
         "x": round(joystick.get_axis(0), 2),  # Left/Right
         "y": round(joystick.get_axis(1), 2),  # Forward/Backward
-        "tilt": round(joystick.get_axis(0), 2),  # Speed Control
+        "tilt": round(joystick.get_axis(2), 2),  # Speed Control
         "power": round(joystick.get_axis(3) * -1, 2),  # Rotation
         "pov": joystick.get_hat(0)[1], # Float up or down
     }
@@ -245,11 +243,11 @@ def update_data():
     temp_data[0].append(sensor1)
     update_graph()
     update_joystick_graph(x, y)
-    update_thruster(thruster_power)
-    update_battery(battery_level)
+    # update_thruster(thruster_power)
+    # update_battery(battery_level)
     update_gripper(gripper_status)
     update_tilt(tilt_angle)
-    update_float(joystick.get_hat(0)[1])
+    update_float(thruster_power)
 
     # with open(log_file, "a", newline="") as file:
     #     writer = csv.writer(file)
