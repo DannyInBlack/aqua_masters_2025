@@ -14,14 +14,14 @@ import struct
 import pickle
 
 # Raspberry Pi IP
-RASPBERRY_PI_IP = "192.168.72.250"
+RASPBERRY_PI_IP = "192.168.61.250"
 #4568
 
 # Define window size
 WINDOW_WIDTH = 1920
 WINDOW_HEIGHT = 1080
 VIDEO_WIDTH, VIDEO_HEIGHT = 720, 480  # Camera feed size
-NO_CONN = True
+NO_CONN = False
 # CONTROLS = True
 BAR_HEIGHT = 165
 
@@ -49,12 +49,12 @@ control_socket.bind("tcp://*:5556")  # Send joystick data from this port
 
 # Detect joystick
 joystick = None
-while pygame.joystick.get_count() == 0:
-    print("Please connect the joystick!")
-    time.sleep(5)
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
-print(f"Joystick Connected: {joystick.get_name()}")
+# while pygame.joystick.get_count() == 0:
+#     print("Please connect the joystick!")
+#     time.sleep(5)
+# joystick = pygame.joystick.Joystick(0)
+# joystick.init()
+# print(f"Joystick Connected: {joystick.get_name()}")
 
 # Create Frames
 left_frame = tk.Frame(root, padx=20, pady=20, bg="lightblue")
@@ -259,7 +259,7 @@ def update_data():
 
 # Start Updates
 receive_video_feed()
-update_data()
+# update_data()
 root.mainloop()
 
 

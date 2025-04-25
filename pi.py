@@ -50,7 +50,7 @@ class VideoFeed:
 
 
 class Controls:
-    def __init__(self, pc_ip = "192.168.72.211"):
+    def __init__(self, pc_ip = "192.168.1.2"):
         while True:
             try:
                 context = zmq.Context()
@@ -171,5 +171,5 @@ class Controls:
 
 controls = Controls()
 threading.Thread(target=controls.receive_joystick, daemon=False).start()
-# video_feed = VideoFeed()
-# threading.Thread(target=video_feed.receive, daemon=True).start()
+video_feed = VideoFeed()
+threading.Thread(target=video_feed.receive, daemon=True).start()
