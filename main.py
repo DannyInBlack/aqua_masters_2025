@@ -1,6 +1,7 @@
 # Code used to send and receive data from the Pi - currently up to date
 import time
 import tkinter as tk
+from gripper_test import Gripper
 import random
 import matplotlib.pyplot as plt
 import numpy as np
@@ -13,9 +14,10 @@ import socket
 import struct
 import pickle
 
+
 # Raspberry Pi IP
-RASPBERRY_PI_IP = "192.168.61.250"
-#4568
+RASPBERRY_PI_IP = "192.168.1.2"
+# 4568
 
 # Define window size
 WINDOW_WIDTH = 1920
@@ -32,7 +34,6 @@ root.geometry(f"{WINDOW_WIDTH}x{WINDOW_HEIGHT}")
 
 # Initialize Pygame for joystick control
 pygame.init()
-pygame.joystick.init()
 
 # socket used for video data
 context = zmq.Context()
@@ -47,14 +48,15 @@ if not NO_CONN:
 control_socket = context.socket(zmq.PUB)
 control_socket.bind("tcp://*:5556")  # Send joystick data from this port
 
-# Detect joystick
+# Detect joystick if connected
 joystick = None
-# while pygame.joystick.get_count() == 0:
-#     print("Please connect the joystick!")
-#     time.sleep(5)
-# joystick = pygame.joystick.Joystick(0)
-# joystick.init()
-# print(f"Joystick Connected: {joystick.get_name()}")
+if pygame.joystick.get_count() != 0:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+    print("Joystick connected!")
+else:
+    print("No joystick found, sticking to keyboard controls")
+
 
 # Create Frames
 left_frame = tk.Frame(root, padx=20, pady=20, bg="lightblue")
@@ -75,39 +77,13 @@ temp_canvas = FigureCanvasTkAgg(fig, master=left_frame)
 temp_canvas.get_tk_widget().pack()
 temp_data = [[]]  # Store temperature data
 
+
 # Updates sensor graph GUI
 def update_graph():
     ax.clear()
-    ax.plot(temp_data[0][-20:], label="Sensor 1", color='red')
+    ax.plot(temp_data[0][-20:], label="Sensor 1", color="red")
     ax.legend()
     temp_canvas.draw()
-
-
-# # Thruster Power Bar Indicator
-# thruster_label = tk.Label(right_frame, text="Thruster Power", bg="lightgray")
-# thruster_label.grid(row=0, column=0, padx=10)
-# thruster_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
-# thruster_bar.grid(row=1, column=0, pady=(10, 0), padx=10)
-#
-#
-# # Updates thruster GUI
-# def update_thruster(power):
-#     thruster_bar.delete("all")
-#     # print(power)
-#     thruster_bar.create_rectangle(0, BAR_HEIGHT / 2 - power * BAR_HEIGHT / 2, 20,  BAR_HEIGHT / 2, fill="green")
-#
-#
-# # Battery Monitoring
-# battery_label = tk.Label(right_frame, text="Battery Level", bg="lightgray")
-# battery_label.grid(row=0, column=1, padx=10)
-# battery_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
-# battery_bar.grid(row=1, column=1, pady=(10, 0), padx=10)
-#
-#
-# # Updates battery GUI
-# def update_battery(level):
-#     battery_bar.delete("all")
-#     battery_bar.create_rectangle(0, 0, 20, level, fill="blue")
 
 # Thruster Power Bar Indicator
 float_label = tk.Label(right_frame, text="Float", bg="lightgray")
@@ -115,9 +91,12 @@ float_label.grid(row=0, column=2, padx=10)
 float_bar = tk.Canvas(right_frame, width=20, height=BAR_HEIGHT, bg="white")
 float_bar.grid(row=1, column=2, pady=(10, 0), padx=10)
 
+
 def update_float(level):
     float_bar.delete("all")
-    float_bar.create_rectangle(0, BAR_HEIGHT / 2 - level * BAR_HEIGHT / 2, 20, BAR_HEIGHT / 2, fill="blue")
+    float_bar.create_rectangle(
+        0, BAR_HEIGHT / 2 - level * BAR_HEIGHT / 2, 20, BAR_HEIGHT / 2, fill="blue"
+    )
 
 
 # Joystick Movement Graph Setup
@@ -127,7 +106,7 @@ ax_joystick.set_ylim(-100, 100)
 ax_joystick.set_title("Joystick Movement")
 joystick_canvas = FigureCanvasTkAgg(fig_joystick, master=right_frame)
 joystick_canvas.get_tk_widget().grid(row=0, column=3, rowspan=2, padx=10)
-joystick_point, = ax_joystick.plot([0], [0], "ro", markersize=8)
+(joystick_point,) = ax_joystick.plot([0], [0], "ro", markersize=8)
 
 
 # Updates joystick graph GUI
@@ -136,6 +115,7 @@ def update_joystick_graph(x, y):
     joystick_point.set_ydata([y])  # Wrap y in a list
     ax_joystick.draw_artist(joystick_point)
     joystick_canvas.draw()
+
 
 tilt_and_gripper = tk.Frame(right_frame)
 tilt_and_gripper.grid(row=0, column=4, padx=10, rowspan=2)
@@ -154,11 +134,13 @@ def update_tilt(angle):
     pos_x = int(center_x + (angle * 165 / 2))  # Scale -1 to 1 range into canvas space
     tilt_canvas.create_line(center_x, 10, pos_x, 10, fill="orange", width=5)
 
+
 # Gripper Status Box
 gripper_label = tk.Label(tilt_and_gripper, text="Gripper Status", bg="lightgray")
 gripper_label.grid(column=0, row=2)
 gripper_canvas = tk.Canvas(tilt_and_gripper, width=50, height=50, bg="white")
 gripper_canvas.grid(column=0, row=3)
+
 
 def update_gripper(status):
     gripper_canvas.delete("all")
@@ -170,12 +152,15 @@ def update_gripper(status):
 video_label = tk.Label(video_frame)
 video_label.pack()
 
+
 # Runs asynchronously to update
 def receive_video_feed():
     """Run in a background thread to handle receiving video frames from the socket."""
 
     if NO_CONN:
-        fakedata = np.random.randint(0, 255, size=(VIDEO_HEIGHT, VIDEO_WIDTH, 3), dtype=np.uint8)
+        fakedata = np.random.randint(
+            0, 255, size=(VIDEO_HEIGHT, VIDEO_WIDTH, 3), dtype=np.uint8
+        )
         fakedata = ImageTk.PhotoImage(Image.fromarray(fakedata))
         video_label.config(image=fakedata)
         video_label.image = fakedata
@@ -218,26 +203,22 @@ def update_data():
     pygame.event.pump()
     sensor1 = round(random.uniform(20, 30), 1)
     # print(joystick.get_axis(3))
-    x, y = round(joystick.get_axis(0), 2) * 100, round(joystick.get_axis(1) * -1, 2) * 100
+    x, y = (
+        round(joystick.get_axis(0), 2) * 100,
+        round(joystick.get_axis(1) * -1, 2) * 100,
+    )
     thruster_power = round(joystick.get_axis(3) * -1, 2)
-    # battery_level = random.randint(0, 100)
-    battery_level = 0
-    # gripper_status = random.choice(["open", "closed", "opening", "closing"])
     gripper_status = "open" if joystick.get_button(0) else "closed"
     tilt_angle = round(joystick.get_axis(2), 2)
-
-    # print(joystick.get_axis(3) * -1)
 
     joystick_data = {
         "x": round(joystick.get_axis(0), 2),  # Left/Right
         "y": round(joystick.get_axis(1), 2),  # Forward/Backward
         "tilt": round(joystick.get_axis(2), 2),  # Speed Control
         "power": round(joystick.get_axis(3) * -1, 2),  # Rotation
-        "pov": joystick.get_hat(0)[1], # Float up or down
+        "pov": joystick.get_hat(0)[1],  # Float up or down
     }
 
-    # if not NO_CONN:
-        # Send data as JSON
     control_socket.send_json(joystick_data)
 
     temp_data[0].append(sensor1)
@@ -249,21 +230,13 @@ def update_data():
     update_tilt(tilt_angle)
     update_float(thruster_power)
 
-    # with open(log_file, "a", newline="") as file:
-    #     writer = csv.writer(file)
-    #     writer.writerow([random.randint(0, 1000), sensor1, x, y, thruster_power, battery_level, tilt_angle])
-
     root.after(50, update_data)
-
 
 
 # Start Updates
 receive_video_feed()
 # update_data()
 root.mainloop()
-
-
+cv2.destroyAllWindows()
 root.destroy()
 client_socket.close()
-cv2.destroyAllWindows()
-

@@ -16,7 +16,7 @@ class VideoFeed:
                 self.cap = cv2.VideoCapture(0)  # Replace 0 with correct index if needed
                 print("CAMERA SOCKET")
                 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                server_socket.bind(('0.0.0.0', 8486))
+                server_socket.bind(('0.0.0.0', 5555))
                 server_socket.listen(1)
                 print("Waiting for connection...")
                 self.conn, self.addr = server_socket.accept()
@@ -32,8 +32,8 @@ class VideoFeed:
             ret, frame = self.cap.read()
             if not ret:
                 continue
-
-            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEGXL_QUALITY), 80])
+ 
+            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             data = pickle.dumps(buffer)
             size = len(data)
 
@@ -50,7 +50,10 @@ class VideoFeed:
 
 
 class Controls:
-    def __init__(self, pc_ip = "192.168.1.2"):
+    def __init__(self, pc_ip = "192.168.1.9", esp = False):
+        self.esp = None
+        self.control_socket = None
+
         while True:
             try:
                 context = zmq.Context()
@@ -66,7 +69,7 @@ class Controls:
                 print("Trying again in 1 second...")
                 time.sleep(1)
 
-        while True:
+        while True and esp:
             try:
                 self.esp = serial.Serial('/dev/ttyS0', 115200, timeout=1)
                 break
@@ -109,7 +112,8 @@ class Controls:
             x = 0
         if abs(y) < 0.1:
             y = 0
-
+        
+        # disabled due to some ESCs being unidirectional
         # float_thrusters = get_magnitude(x, y)
 
         # Handle movement forward or backward
@@ -150,7 +154,6 @@ class Controls:
         while True:
             try:
                 joystick_data = self.control_socket.recv_json()
-                # print("Received Joystick Data:", joystick_data)
                 if joystick_data:
                     thruster_values = self.map_joystick_to_thrusters(
                         joystick_data['x'],
@@ -162,14 +165,17 @@ class Controls:
 
                     # Send thruster values to ESP32 over UART
                     thruster_command = " ".join(map(str, thruster_values)) + "\n"
-                    self.esp.write(thruster_command.encode())
+                    if self.esp != None:
+                        self.esp.write(thruster_command.encode())
+
                     print("Sent Thruster Data:", thruster_command)
             except Exception as e:
                 print("Error receiving joystick data:", e)
+            time.sleep(0.05)
 
 
-
-controls = Controls()
-threading.Thread(target=controls.receive_joystick, daemon=False).start()
-video_feed = VideoFeed()
-threading.Thread(target=video_feed.receive, daemon=True).start()
+if __name__ == "__main__":
+    controls = Controls()
+    threading.Thread(target=controls.receive_joystick).start()
+    video_feed = VideoFeed()
+    threading.Thread(target=video_feed.receive).start()
