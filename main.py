@@ -111,8 +111,9 @@ joystick_canvas.get_tk_widget().grid(row=0, column=3, rowspan=2, padx=10)
 
 # Updates joystick graph GUI
 def update_joystick_graph(x, y):
-    joystick_point.set_xdata([x])  # Wrap x in a list
-    joystick_point.set_ydata([y])  # Wrap y in a list
+    # wrap data in a list
+    joystick_point.set_xdata([x])
+    joystick_point.set_ydata([y])
     ax_joystick.draw_artist(joystick_point)
     joystick_canvas.draw()
 
@@ -153,9 +154,10 @@ video_label = tk.Label(video_frame)
 video_label.pack()
 
 
-# Runs asynchronously to update
+# Runs asynchronously
 def receive_video_feed():
-    """Run in a background thread to handle receiving video frames from the socket."""
+    """Run in a background thread to handle receiving video frames from the socket.
+    Generates a noisy image if there is no connection"""
 
     if NO_CONN:
         fakedata = np.random.randint(
@@ -168,27 +170,23 @@ def receive_video_feed():
         return
 
     global data
-    # Ensure enough data is received for the packet size
+
     while len(data) < payload_size:
         data += client_socket.recv(4096)
 
-    # Extract the payload size
     packed_msg_size = data[:payload_size]
     data = data[payload_size:]
     msg_size = struct.unpack(">L", packed_msg_size)[0]
 
-    # Receive the complete frame data
     while len(data) < msg_size:
         data += client_socket.recv(4096)
 
-    # Deserialize and decode the frame
     frame_data = data[:msg_size]
     data = data[msg_size:]
     frame = pickle.loads(frame_data)
     frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
     frame = cv2.resize(frame, (VIDEO_WIDTH, VIDEO_HEIGHT))
 
-    # Add the frame to the queue for processing in the main thread
     if frame is not None:
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         frame = ImageTk.PhotoImage(Image.fromarray(frame))

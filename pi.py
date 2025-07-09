@@ -16,7 +16,7 @@ class VideoFeed:
                 self.cap = cv2.VideoCapture(0)  # Replace 0 with correct index if needed
                 print("CAMERA SOCKET")
                 server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                server_socket.bind(('0.0.0.0', 5555))
+                server_socket.bind(("0.0.0.0", 5555))
                 server_socket.listen(1)
                 print("Waiting for connection...")
                 self.conn, self.addr = server_socket.accept()
@@ -26,14 +26,13 @@ class VideoFeed:
                 print("Couldn't connect to camera, trying again in 1 second...")
                 time.sleep(1)
 
-
     def receive(self):
         while True:
             ret, frame = self.cap.read()
             if not ret:
                 continue
- 
-            _, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+
+            _, buffer = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
             data = pickle.dumps(buffer)
             size = len(data)
 
@@ -43,14 +42,13 @@ class VideoFeed:
                 print(e)
                 break
 
-
         self.cap.release()
         self.conn.close()
         self.__init__()
 
 
 class Controls:
-    def __init__(self, pc_ip = "192.168.1.9", esp = False):
+    def __init__(self, pc_ip="192.168.1.9", esp=False):
         self.esp = None
         self.control_socket = None
 
@@ -59,26 +57,25 @@ class Controls:
                 context = zmq.Context()
                 print("Connecting to control socket....")
                 self.control_socket = context.socket(zmq.SUB)
-                self.control_socket.connect(f'tcp://{pc_ip}:5556')  # Surface Laptop IP
+                self.control_socket.connect(f"tcp://{pc_ip}:5556")  # Surface Laptop IP
                 self.control_socket.setsockopt(zmq.SUBSCRIBE, b"")
                 print("Connected to control socket!")
                 break
             except Exception as e:
-                print("Failed to connect to PC: ", end='')
+                print("Failed to connect to PC: ", end="")
                 print(e)
                 print("Trying again in 1 second...")
                 time.sleep(1)
 
         while True and esp:
             try:
-                self.esp = serial.Serial('/dev/ttyS0', 115200, timeout=1)
+                self.esp = serial.Serial("/dev/ttyS0", 115200, timeout=1)
                 break
             except Exception as e:
-                print("Failed to connect to serial port: ", end='')
+                print("Failed to connect to serial port: ", end="")
                 print(e)
                 print("Trying again in 1 second...")
                 time.sleep(1)
-
 
     # convert values from -1 to 1 into 1000 to 2000
     def convert_to_int(self, value):
@@ -96,7 +93,7 @@ class Controls:
             -x + y,  # Front-left
             x + y,  # Front-right
             -x - y,  # Rear-left
-            x - y  # Rear-right
+            x - y,  # Rear-right
         ]
 
         # Do not exceed limits of motor activation
@@ -104,7 +101,12 @@ class Controls:
 
     def map_joystick_to_thrusters(self, x, y, tilt, power, pov):
         # [1, 4, 5, 8]
-        float_thrusters = [1, 0, 0, 1] # 1 and 8 are unidirectional (so is 2, but we don't use it) (1 = Off)
+        float_thrusters = [
+            1,
+            0,
+            0,
+            1,
+        ]  # 1 and 8 are unidirectional (so is 2, but we don't use it) (1 = Off)
         # [2, 3, 6, 7]
         direction_thrusters = [0, 0, 0, 0]
 
@@ -112,7 +114,7 @@ class Controls:
             x = 0
         if abs(y) < 0.1:
             y = 0
-        
+
         # disabled due to some ESCs being unidirectional
         # float_thrusters = get_magnitude(x, y)
 
@@ -122,7 +124,6 @@ class Controls:
         # Handle rotation right or left
         if x > 0 or x < 0:
             direction_thrusters = [0, -x, x, 0]
-
 
         # Handle floating movement (POV up/down)
         if power > 0:
@@ -138,7 +139,7 @@ class Controls:
             float_thrusters[2],
             direction_thrusters[2],
             direction_thrusters[3],
-            float_thrusters[3]
+            float_thrusters[3],
         ]
 
         for i in range(len(motors)):
@@ -149,18 +150,17 @@ class Controls:
 
         return motors
 
-
     def receive_joystick(self):
         while True:
             try:
                 joystick_data = self.control_socket.recv_json()
                 if joystick_data:
                     thruster_values = self.map_joystick_to_thrusters(
-                        joystick_data['x'],
-                        joystick_data['y'],
-                        joystick_data['tilt'],
-                        joystick_data['power'],
-                        joystick_data['pov'],
+                        joystick_data["x"],
+                        joystick_data["y"],
+                        joystick_data["tilt"],
+                        joystick_data["power"],
+                        joystick_data["pov"],
                     )
 
                     # Send thruster values to ESP32 over UART

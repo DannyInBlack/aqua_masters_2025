@@ -15,6 +15,7 @@ import socket
 import struct
 import pickle
 
+
 class Control:
     def __init__(self):
         # detect joystick if connected
@@ -25,30 +26,30 @@ class Control:
             print("Joystick connected!")
         else:
             print("No joystick found, sticking to keyboard controls")
-    
+
     def get_joystick_data(self):
-        if self.joystick == None:
-            return None
-        
+
         x, y = (
             round(self.joystick.get_axis(0), 2),
             round(self.joystick.get_axis(1) * -1, 2),
         )
-        
+
         pov = round(self.joystick.get_axis(3) * -1, 2)
         gripper = self.joystick.get_button(0)
 
         joystick_data = {
             "x": x,  # rotation right (+ve)/ left (-ve)
-            "y": y,  # forward (+ve)/ backward (-ve) 
+            "y": y,  # forward (+ve)/ backward (-ve)
             "pov": pov,  # float down (+ve) or up (-ve)
-            "gripper": gripper # gripper closed (0) or open (1)
+            "gripper": gripper,  # gripper closed (0) or open (1)
         }
 
         return joystick_data
-    
+
     def get_keyboard_data(self):
         keys = pygame.key.get_pressed()
+
+        y = 0, x = 0, pov = 0, gripper = 0
 
         if keys[pygame.K_UP] and not keys[pygame.K_DOWN]:
             y = 1.0
@@ -60,28 +61,49 @@ class Control:
         elif not keys[pygame.K_RIGHT] and keys[pygame.K_LEFT]:
             x = -1.0
 
+        if keys[pygame.K_SPACE]:
+            gripper = 1.0
+
+        if keys[pygame.K_LSHIFT] and not keys[pygame.K_LCTRL]:
+            pov = 1.0
+        elif not keys[pygame.K_LSHIFT] and keys[pygame.K_LCTRL]:
+            pov = -1.0
+
+        keyboard_data = {
+            "x": x,  # rotation right (+ve)/ left (-ve)
+            "y": y,  # forward (+ve)/ backward (-ve)
+            "pov": pov,  # float down (+ve) or up (-ve)
+            "gripper": gripper,  # gripper closed (0) or open (1)
+        }
+
+        return keyboard_data
         
 
-        x, y = (
-            round(pygame.key.get_pressed())
-        )
+    def get_input(self):
+        pygame.event.pump()
+        if self.joystick != None:
+            return self.get_joystick_data()
+        else:
+            return self.get_keyboard_data()
+
+
 
 class GUI:
     def __init__(
-            self, 
-            window_width = 1920, 
-            window_height = 1080,
-            video = True,
-            video_width = 720,
-            video_height = 480,
-            bar_height = 165,
-            pi_ip = "192.168.1.3"
-            ):
+        self,
+        window_width=1920,
+        window_height=1080,
+        video=True,
+        video_width=720,
+        video_height=480,
+        bar_height=165,
+        pi_ip="192.168.1.3",
+    ):
         self.window_width = window_width
         self.window_height = window_height
         self.video = video
-        self.video_width = video_width,
-        self.video_height = video_height,
+        self.video_width = (video_width,)
+        self.video_height = (video_height,)
         self.bar_height = bar_height
         self.pi_ip = pi_ip
 
@@ -105,7 +127,7 @@ class GUI:
             self.video_socket.setsockopt(zmq.IMMEDIATE, 1)
             self.video_socket.setsockopt(zmq.RCVTIMEO, 1000)
             self.video_socket.setsockopt(zmq.SNDTIMEO, 1000)
-            self.video_socket.connect(f'udp://{pi_ip}:5555')
+            self.video_socket.connect(f"udp://{pi_ip}:5555")
             print("Connected to video socket!")
 
         # Initialize ZeroMQ socket for joystick data
@@ -122,7 +144,6 @@ class GUI:
         self.right_frame = tk.Frame(self.root, padx=20, pady=20, bg="lightgray")
         self.right_frame.grid(row=1, column=1, sticky="n")
 
-
         # Temperature Graph Setup
         fig, self.ax = plt.subplots(figsize=(3, 2))  # Reduce size
         self.ax.set_title("Temperature Trends")
@@ -135,7 +156,9 @@ class GUI:
         # Thruster Power Bar Indicator
         float_label = tk.Label(self.right_frame, text="Float", bg="lightgray")
         float_label.grid(row=0, column=2, padx=10)
-        float_bar = tk.Canvas(self.right_frame, width=20, height=self.bar_height, bg="white")
+        float_bar = tk.Canvas(
+            self.right_frame, width=20, height=self.bar_height, bg="white"
+        )
         float_bar.grid(row=1, column=2, pady=(10, 0), padx=10)
 
         # Joystick Movement Graph Setup
@@ -157,7 +180,9 @@ class GUI:
         tilt_canvas.grid(column=0, row=1)
 
         # Gripper Status Box
-        gripper_label = tk.Label(tilt_and_gripper, text="Gripper Status", bg="lightgray")
+        gripper_label = tk.Label(
+            tilt_and_gripper, text="Gripper Status", bg="lightgray"
+        )
         gripper_label.grid(column=0, row=2)
         gripper_canvas = tk.Canvas(tilt_and_gripper, width=50, height=50, bg="white")
         gripper_canvas.grid(column=0, row=3)
@@ -176,16 +201,19 @@ class GUI:
     def update_float(self, level):
         self.float_bar.delete("all")
         self.float_bar.create_rectangle(
-            0, self.BAR_HEIGHT / 2 - level * BAR_HEIGHT / 2, 20, BAR_HEIGHT / 2, fill="blue"
+            0,
+            self.bar_height / 2 - level * self.bar_height / 2,
+            20,
+            self.bar_height / 2,
+            fill="blue",
         )
 
     # Updates joystick graph GUI
     def update_joystick_graph(self, x, y):
-        self.joystick_point.set_xdata([x])  # Wrap x in a list
-        self.joystick_point.set_ydata([y])  # Wrap y in a list
+        self.joystick_point.set_xdata([x]) 
+        self.joystick_point.set_ydata([y]) 
         self.ax_joystick.draw_artist(self.joystick_point)
         self.joystick_canvas.draw()
-
 
     # Updates tilt GUI
     def update_tilt(self, angle):
@@ -194,55 +222,92 @@ class GUI:
         pos_x = int(center_x + (angle * 165 / 2))  # Scale -1 to 1 range into canvas space
         self.tilt_canvas.create_line(center_x, 10, pos_x, 10, fill="orange", width=5)
 
-
     def update_gripper(self, status):
         self.gripper_canvas.delete("all")
         color = "green" if status in ["open", "opening"] else "red"
         self.gripper_canvas.create_rectangle(0, 0, 50, 50, fill=color)
+    
+    def update_video(self, frame):
+        self.video_frame.config(image=frame)
+        self.video_frame.image = frame
 
+    def update_gui(self, video_image, input, fps = 24):
 
-    def fake_frame(self):
-        return ImageTk.PhotoImage(Image.fromarray(np.random.randint(0, 1, size=(self.video_height, self.video_width, 1), dtype=np.bool)))
-
-    # Runs asynchronously to update
-    def receive_video_feed(self):
-        """Run in a background thread to handle receiving video frames from the socket."""
-        while True:
-            if not self.video:
-                self.update_video(self.fake_frame())
-                return
-
-            frame = self.video_socket.recv()
-            frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
-            frame = cv2.resize(frame, (self.video_width, self.video_height))
-
-            # Add the frame to the queue for processing in the main thread
-            if frame is not None:
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame = ImageTk.PhotoImage(Image.fromarray(frame))
-                self.update_video(frame)
-
-
-    def update_gui(self):
         pass
 
 
+class VideoFeed:
+    def __init__(
+        self,
+        video_conn=False,
+        video_width=720,
+        video_height=480,
+        pi_ip="192.168.1.3",
+    ):
+        self.video_conn = video_conn
+        self.pi_ip = pi_ip
+        self.video_width = (video_width,)
+        self.video_height = (video_height,)
         
-def get_control_data():
-    pygame.event.pump()
-    sensor1 = round(random.uniform(20, 30), 1)
-    x, y = (
-        round(joystick.get_axis(0), 2) * 100,
-        round(joystick.get_axis(1) * -1, 2) * 100,
-    )
+        context = zmq.Context()
+
+        # TODO: Better error handling required
+        if video_conn:
+            print("Initalizing video socket connection...")
+            self.video_socket = context.socket(zmq.SUB)
+            self.video_socket.setsockopt(zmq.LINGER, 0)
+            self.video_socket.setsockopt(zmq.SNDHWM, 10000)
+            self.video_socket.setsockopt(zmq.RCVHWM, 10000)
+            self.video_socket.setsockopt(zmq.IMMEDIATE, 1)
+            self.video_socket.setsockopt(zmq.RCVTIMEO, 1000)
+            self.video_socket.setsockopt(zmq.SNDTIMEO, 1000)
+            self.video_socket.connect(f"udp://{pi_ip}:5555")
+            print("Connected to video socket!")
     
+    # Run async for non-blocking video handling
+    def receive_video_feed(self):
+        """Run in a background thread to handle receiving video frames from the socket."""
+        
+        frame = None
+        while True:
+            frame = self.gen_frame(frame)
+
+    def gen_frame(self, prev_frame = None):
+        if not self.video_conn:
+            return self.fake_frame()
+        
+        if prev_frame == None:
+            prev_frame = self.fake_frame()
+        
+        frame = self.video_socket.recv()
+        frame = cv2.imdecode(frame, cv2.IMREAD_COLOR)
+        frame = cv2.resize(frame, (self.video_width, self.video_height))
+
+        # Add the frame to the queue for processing in the main thread
+        if frame is not None:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frame = ImageTk.PhotoImage(Image.fromarray(frame))
+            return frame
+        
+        # Return the last received frame stored if failed to process new frame
+        return prev_frame
+            
+    # Fake noise data
+    def fake_frame(self):
+        return ImageTk.PhotoImage(
+            Image.fromarray(
+                np.random.randint(
+                    0, 1, size=(self.video_height, self.video_width, 1), dtype=np.bool
+                )
+            )
+        )
+
 
 # Data Update Function
 def update_data():
     pygame.event.pump()
     sensor1 = round(random.uniform(20, 30), 1)
     # print(joystick.get_axis(3))
-
 
     control_socket.send_json(joystick_data)
 
@@ -260,6 +325,7 @@ def update_data():
 
 if __name__ == "__main__":
     app = GUI()
+    controls = Control()
     threading.Thread(target=update_data)
     app.root.mainloop()
     app.root.destroy()
