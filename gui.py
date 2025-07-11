@@ -305,10 +305,6 @@ class VideoFeed:
 
 # Data Update Function
 def update_data():
-    pygame.event.pump()
-    sensor1 = round(random.uniform(20, 30), 1)
-    # print(joystick.get_axis(3))
-
     control_socket.send_json(joystick_data)
 
     temp_data[0].append(sensor1)
@@ -324,6 +320,7 @@ def update_data():
 
 
 if __name__ == "__main__":
+    pygame.event.pump()
     app = GUI()
     controls = Control()
     threading.Thread(target=update_data)

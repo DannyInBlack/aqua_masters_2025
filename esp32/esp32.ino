@@ -27,6 +27,8 @@ ESC escs[8]{
   ESC(M8, SPEED_MAX, SPEED_MAXR, 1000)
 };
 
+int motorValues[8];
+
 void setup() {
   Serial.begin(115200);   // Serial monitor
   Serial2.begin(115200, SERIAL_8N1, TX1, RX1);  // Start UART2 (baud: 9600)
@@ -63,8 +65,8 @@ void getFromPi(){
     escs[5].speed(motorValues[5]);
     escs[6].speed(motorValues[6]);
     escs[7].speed(motorValues[7]);
-    delay(15);
   }
+  delay(50);
 }
 
 // Test motor thrust in both directions (bidirectional thrust test)
