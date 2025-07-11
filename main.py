@@ -1,4 +1,4 @@
-# Code used to send and receive data from the Pi - currently up to date
+# Code used to send and receive data from the Pi - old but functional code
 import time
 import tkinter as tk
 from gripper_test import Gripper

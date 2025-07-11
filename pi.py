@@ -26,7 +26,7 @@ class VideoFeed:
                 print("Couldn't connect to camera, trying again in 1 second...")
                 time.sleep(1)
 
-    def receive(self):
+    def send(self):
         while True:
             ret, frame = self.cap.read()
             if not ret:
@@ -48,7 +48,7 @@ class VideoFeed:
 
 
 class Controls:
-    def __init__(self, pc_ip="192.168.1.9", esp=False):
+    def __init__(self, pc_ip="192.168.1.2", esp=False):
         self.esp = None
         self.control_socket = None
 
@@ -175,7 +175,10 @@ class Controls:
 
 
 if __name__ == "__main__":
-    controls = Controls()
+    controls = Controls(
+        pc_ip="192.168.1.2",
+        esp=True
+    )
     threading.Thread(target=controls.receive_joystick).start()
     video_feed = VideoFeed()
-    threading.Thread(target=video_feed.receive).start()
+    threading.Thread(target=video_feed.send).start()
